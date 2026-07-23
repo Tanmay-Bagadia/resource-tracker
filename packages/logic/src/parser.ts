@@ -1,5 +1,6 @@
 import { TRANSACTION_TYPE ,type Transaction } from "../../core-types/src/index.ts";
 
+
 export function parseCliCommand(command : string) { 
 
     command = command.replace(/\s+/g , " ").trim();
@@ -30,7 +31,10 @@ export function parseCliCommand(command : string) {
 
     transaction.amount = parsedAmount;
     transaction.category = category;
-    transaction.merchant = coreCommand.slice(2).join(" ");
+    transaction.merchant = merchant;
+
+    transaction.timestampMs = Date.now();
+    transaction.id = crypto.randomUUID();
     
     return transaction;
 }
