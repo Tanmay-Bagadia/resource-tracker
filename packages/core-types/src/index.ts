@@ -9,4 +9,5 @@ export interface Transaction{
     amount : number,
     merchant: string,
     timestamp : number,
+    desc? : string
 }
