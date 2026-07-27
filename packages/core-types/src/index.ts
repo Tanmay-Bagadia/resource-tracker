@@ -13,7 +13,7 @@ export interface Transaction {
   desc?: string;
 }
 
-type StockAsset = {
+export type StockAsset = {
   type: "STOCK";
   quantity: number;
   avgBuyPrice: number;
@@ -22,7 +22,7 @@ type StockAsset = {
   exchange: string;
 };
 
-type FDAsset = {
+export type FDAsset = {
   type: "FIXED-DEPOSIT";
   principal: number;
   interestRate: number;
@@ -33,7 +33,7 @@ type FDAsset = {
   isLiquid: boolean;
 };
 
-type MutualFundAsset = {
+export type MutualFundAsset = {
   type: "MUTUAL-FUND";
   schemeName: string;
   schemeCode: number;
@@ -44,13 +44,13 @@ type MutualFundAsset = {
   sipAmount: number;
 };
 
-type VestingEvent = {
+export type VestingEvent = {
   date: Date | Date[];
   amount: number | number[];
   note?: string;
 };
 
-type ESOPAsset = {
+export type ESOPAsset = {
   type: "ESOP";
   companyName: string;
   grantDate: Date;
@@ -63,7 +63,7 @@ type ESOPAsset = {
   isListed: boolean;
 };
 
-type CryptoAsset = {
+export type CryptoAsset = {
   type: "CRYPTO";
   token: string;
   quantity: number;
@@ -72,7 +72,7 @@ type CryptoAsset = {
   walletType?: string;
 };
 
-type PPFAsset = {
+export type PPFAsset = {
   type: "PPF";
   accountNumber?: string;
   totalDeposited: number;
@@ -104,7 +104,7 @@ export type Asset = {
   | PPFAsset
 );
 
-type Loan = {
+export type Loan = {
   type: "LOAN";
   loanType: string;
   principalAmount: number;
@@ -116,13 +116,13 @@ type Loan = {
   lenderName: string;
 };
 
-type CreditCard = {
+export type CreditCard = {
   type: "CREDIT-CARD";
   bankName: string;
   cardName?: string;
   creditLimit: number;
-  dueDate: Date;
-  minpayment: number;
+  dueDate?: Date;
+  minpayment?: number;
   interestRate: number;
 };
 
