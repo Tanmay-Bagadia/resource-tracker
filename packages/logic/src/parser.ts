@@ -12,6 +12,7 @@ import type {
   PPFAsset,
   MutualFundAsset,
 } from "../../core-types/src/index.ts";
+import { parseWithLocalLLM } from "./nlp.ts";
 
 // ============================================================================
 // TODO (Phase 5 - Market Data Integration):
@@ -24,27 +25,38 @@ import type {
 // those Intents, fetch real market data via APIs, and construct the final Asset.
 // ============================================================================
 
-export function parseInput(command: string) {
-  const firstWord = command.trim().split(" ")[0].toLowerCase();
-  switch (firstWord) {
-    case "stock":
-      return parseStock(command);
-    case "fd":
-      return parseFD(command);
-    case "mf":
-      return parseMutualFund(command);
-    case "crypto":
-      return parseCrypto(command);
-    case "esop":
-      return parseESOP(command);
-    case "loan":
-      return parseLoan(command);
-    case "cc":
-      return parseCreditCard(command);
-    case "ppf":
-      return parsePPF(command);
-    default:
-      return parseTransaction(command);
+export async function parseInput(command: string) {
+  try {
+    const firstWord = command.trim().split(" ")[0].toLowerCase();
+    switch (firstWord) {
+      case "stock":
+        return parseStock(command);
+      case "fd":
+        return parseFD(command);
+      case "mf":
+        return parseMutualFund(command);
+      case "crypto":
+        return parseCrypto(command);
+      case "esop":
+        return parseESOP(command);
+      case "loan":
+        return parseLoan(command);
+      case "cc":
+        return parseCreditCard(command);
+      case "ppf":
+        return parsePPF(command);
+      default:
+        return parseTransaction(command);
+    }
+  } catch (regexError) {
+    console.log(`[Parser] Strict regex failed. Routing to Ollama NLP...`);
+    try {
+      return await parseWithLocalLLM(command);
+    } catch (llmError) {
+      throw new Error(
+        `Failed to understand input via strict formatting or NLP.`
+      );
+    }
   }
 }
 
@@ -227,20 +239,24 @@ function parseCreditCard(command: string): Partial<CreditCard & Liability> {
     interestRate: Math.abs(parseFloat(match.groups.rate)),
     bankName: match.groups.bankInfo.trim(),
   };
-  if (match.groups.notes) cc.notes = match.groups.notes.replace(/^["']|["']$/g, '').trim();
+  if (match.groups.notes)
+    cc.notes = match.groups.notes.replace(/^["']|["']$/g, "").trim();
   return cc;
 }
 
 function parsePPF(command: string): Partial<PPFAsset & Asset> {
-  const regex = /^ppf\s+(?<balance>\d+(?:\.\d+)?)\s+(?<rate>\d+(?:\.\d+)?)%(?:\s+(?<notes>.*))?$/i;
+  const regex =
+    /^ppf\s+(?<balance>\d+(?:\.\d+)?)\s+(?<rate>\d+(?:\.\d+)?)%(?:\s+(?<notes>.*))?$/i;
   const match = command.match(regex);
-  if (!match?.groups) throw new Error("Invalid PPF format! Expected: ppf <balance> <rate>%");
-  
+  if (!match?.groups)
+    throw new Error("Invalid PPF format! Expected: ppf <balance> <rate>%");
+
   const ppf: Partial<PPFAsset & Asset> = {
     type: "PPF",
     currentBalance: Math.abs(parseFloat(match.groups.balance)),
     interestRate: Math.abs(parseFloat(match.groups.rate)),
   };
-  if (match.groups.notes) ppf.notes = match.groups.notes.replace(/^["']|["']$/g, '').trim();
+  if (match.groups.notes)
+    ppf.notes = match.groups.notes.replace(/^["']|["']$/g, "").trim();
   return ppf;
 }
