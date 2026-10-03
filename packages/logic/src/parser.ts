@@ -14,17 +14,6 @@ import type {
 } from "../../core-types/src/index.ts";
 import { parseWithLocalLLM } from "./nlp.ts";
 
-// ============================================================================
-// TODO (Phase 5 - Market Data Integration):
-// Currently, these parsers return Partial<Asset> because they cannot fetch
-// real-time market data (like currentPrice) and must leave those fields blank.
-//
-// REFACTOR THIS ENTIRE FILE in Phase 5 to implement the "Intent Pattern".
-// These functions should NOT return Partial Assets. They should return strict
-// Intent objects (e.g., CreateStockIntent). A separate AssetService will take
-// those Intents, fetch real market data via APIs, and construct the final Asset.
-// ============================================================================
-
 export async function parseInput(command: string) {
   try {
     const firstWord = command.trim().split(" ")[0].toLowerCase();
@@ -138,7 +127,6 @@ function parseFD(command: string): Partial<FDAsset & Asset> {
   };
   if (match.groups.notes)
     fd.notes = match.groups.notes.replace(/^["']|["']$/g, "").trim();
-  // Note: match.groups.tenure string (e.g. "1y") needs to be converted to maturityDate in the Service layer
   return fd;
 }
 
