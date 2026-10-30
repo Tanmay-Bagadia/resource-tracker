@@ -1,159 +1,129 @@
-# Turborepo starter
+# Resource Tracker
 
-This Turborepo starter is maintained by the Turborepo core team.
+A high-integrity personal finance platform designed for Indian salaried investors. Transforms statement exports (bank CSVs, mutual fund statements) into a unified, accurate picture of net worth, cash flow, runway, and portfolio asset allocation — completely offline and local-first.
 
-## Using this example
+---
 
-Run the following command:
+## Core Design Principles
 
-```sh
-npx create-turbo@latest
+1. **Fixed-Point Integer Money Math** ([ADR 001](docs/adr/001-money-representation.md)):
+   Monetary values are never stored or calculated with floating-point numbers. All currency amounts are represented in integer minor units (paise for INR, where ₹1.00 = 100 paise) via TypeScript branded types (`Paise`), eliminating floating-point rounding drift.
+
+2. **Event-Sourced Ledger — "Derive State, Don't Store It"** ([ADR 002](docs/adr/002-event-based-ledger.md)):
+   Balances, holdings, and portfolio valuations are not stored as mutable summary rows. Instead, the ledger stores an immutable stream of dated events (`LedgerEntry`). Account balances, asset allocations, and net worth snapshots are purely derived by deterministic event replay.
+
+3. **Safe Ingestion & Idempotency**:
+   Bank and broker statements are parsed using RFC 4180 compliant CSV parsers with bank-specific normalizers (HDFC, ICICI, SBI, Axis, and generic statements). Deterministic fingerprint keys prevent duplicate entries upon re-ingestion.
+
+---
+
+## Monorepo Layout
+
+```
+├── packages/
+│   ├── core/       # Pure domain models, branded money units, event ledger, replay, periods
+│   ├── storage/    # Persistence repositories (Unit of Work, Event Store, Snapshot Cache)
+│   ├── ingest/     # CSV/JSON parsers, format detection, normalizers, and dedup pipeline
+│   └── market/     # In-memory price registry, AMFI NAV parser, asset lookup, staleness reports
+├── apps/
+│   └── cli/        # Command-line interface (`rt`) built with CAC
+└── docs/
+    └── adr/        # Architecture Decision Records
 ```
 
-## What's inside?
+---
 
-This Turborepo includes the following packages/apps:
+## Getting Started
 
-### Apps and Packages
+### Prerequisites
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+- **Node.js**: `>= 22.0.0`
+- **npm**: `>= 11.0.0`
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+### Installation & Build
 
-### Utilities
+```bash
+# Install workspace dependencies
+npm install
 
-This Turborepo has some additional tools already setup for you:
+# Type-check across all packages
+npm run check-types
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+# Build packages and applications
+npm run build
 
-### Build
+# Run unit and property-based test suites
+npm test
 
-To build all apps and packages, run the following command:
+# Lint source files
+npm run lint
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+# Format code
+npm run format
 ```
 
-Without global `turbo`, use your package manager:
+---
 
-```sh
-cd my-turborepo
-npx turbo build
-npm dlx turbo build
-npm exec turbo build
+## CLI Usage (`rt`)
+
+The repository includes a fast command-line test bench and operational tool (`@resource-tracker/cli`).
+
+### Record Ledger Events
+
+```bash
+# Record an income event
+npx rt record income --account hdfc-salary --amount 125000.00 --description "Monthly Salary" --date 2025-01-01
+
+# Record an expense
+npx rt record expense --account hdfc-salary --amount 18500.00 --description "Rent Payment" --date 2025-01-05
+
+# Record an inter-account transfer (does not double-count as expense)
+npx rt record transfer --account hdfc-salary --to-account sbi-savings --amount 25000.00 --description "Emergency Fund" --date 2025-01-10
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+### Ingest Bank Statements
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo build --filter=docs
+```bash
+# Ingest statement CSV (auto-detects HDFC, ICICI, SBI, Axis, or generic format)
+npx rt ingest statement.csv --account hdfc-salary
 ```
 
-Without global `turbo`:
+Re-importing the same statement is idempotent — existing records are automatically detected and skipped.
 
-```sh
-npx turbo build --filter=docs
-npm exec turbo build --filter=docs
-npm exec turbo build --filter=docs
+### Query Balances & Portfolio Status
+
+```bash
+# View derived balances across all accounts
+npx rt balances
+
+# Point-in-time balances
+npx rt balances --as-of 2025-01-15
+
+# View net worth, monthly burn rate, runway, and savings rate
+npx rt status
 ```
 
-### Develop
+### View Audit Trail
 
-To develop all apps and packages, run the following command:
+```bash
+# View chronological audit trail of ledger events
+npx rt trail
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo dev
+# Filter audit trail by account
+npx rt trail --account hdfc-salary --limit 50
 ```
 
-Without global `turbo`, use your package manager:
+---
 
-```sh
-cd my-turborepo
-npx turbo dev
-npm exec turbo dev
-npm exec turbo dev
+## Testing
+
+The test suite uses [Vitest](https://vitest.dev/) and [fast-check](https://fast-check.dev/) to verify both unit behavior and mathematical invariants:
+
+- **Conservation of money**: Splitting and recombining amounts retains exact integer paise totals.
+- **Algebraic invariants**: Addition commutativity ($a + b = b + a$) and identity ($a + 0 = a$).
+- **Replay determinism**: Shuffled or re-ordered event logs produce identical account balances.
+- **Idempotency**: Ingesting the same transaction file multiple times yields zero duplicate entries.
+
+```bash
+npm test
 ```
-
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo dev --filter=web
-npm exec turbo dev --filter=web
-npm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-npm exec turbo login
-npm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-npm exec turbo link
-npm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
