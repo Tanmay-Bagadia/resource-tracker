@@ -2,6 +2,7 @@
   "name": "resource-tracker",
   "private": true,
   "scripts": {
+    "rt": "node apps/cli/src/index.ts",
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
