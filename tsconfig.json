@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/core" },
+    { "path": "packages/ingest" },
+    { "path": "packages/storage" },
+    { "path": "packages/market" },
+    { "path": "apps/cli" },
+    { "path": "packages/typescript-config" },
+    { "path": "packages/eslint-config" }
+  ]
+}
