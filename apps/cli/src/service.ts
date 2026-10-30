@@ -3,6 +3,7 @@
  * Application service coordinating core domain models, persistence, and ingestion.
  */
 
+import fs from "node:fs";
 import {
   accountId,
   calendarDate,
@@ -12,9 +13,16 @@ import {
   deriveAccountBalances,
   computeSnapshot,
 } from "@resource-tracker/core";
-import type { LedgerEntry, Paise, Snapshot } from "@resource-tracker/core";
+import type {
+  Account,
+  Instrument,
+  LedgerEntry,
+  Paise,
+  Price,
+  Snapshot,
+} from "@resource-tracker/core";
 import { createMemoryUnitOfWork } from "@resource-tracker/storage";
-import type { UnitOfWork } from "@resource-tracker/storage";
+import type { UnitOfWork, ImportBatch } from "@resource-tracker/storage";
 import { ingest, toLedgerEntries } from "@resource-tracker/ingest";
 import type { SourceFormat, IngestResult } from "@resource-tracker/ingest";
 
@@ -44,11 +52,55 @@ export interface BalanceReport {
   readonly formatted: string;
 }
 
+interface SerializedVault {
+  readonly accounts?: readonly Account[];
+  readonly instruments?: readonly Instrument[];
+  readonly entries?: readonly LedgerEntry[];
+  readonly prices?: readonly Price[];
+  readonly importBatches?: readonly ImportBatch[];
+}
+
 /**
  * High-level tracker service encapsulating repository operations.
  */
 export class TrackerService {
-  constructor(public readonly uow: UnitOfWork = createMemoryUnitOfWork()) {}
+  public readonly uow: UnitOfWork;
+  public readonly vaultPath?: string;
+
+  constructor(uow: UnitOfWork = createMemoryUnitOfWork(), vaultPath?: string) {
+    this.uow = uow;
+    this.vaultPath = vaultPath;
+    if (this.vaultPath) {
+      this.loadFromVault(this.vaultPath);
+    }
+  }
+
+  private loadFromVault(filePath: string): void {
+    if (!fs.existsSync(filePath)) return;
+    try {
+      const data = fs.readFileSync(filePath, "utf-8");
+      const vault = JSON.parse(data) as SerializedVault;
+      for (const a of vault.accounts ?? []) this.uow.accounts.save(a);
+      for (const i of vault.instruments ?? []) this.uow.instruments.save(i);
+      if (vault.entries && vault.entries.length > 0) {
+        this.uow.ledger.appendBatch(vault.entries);
+      }
+      for (const b of vault.importBatches ?? []) this.uow.importBatches.save(b);
+    } catch {
+      // Ignore corrupt file or parse errors and proceed
+    }
+  }
+
+  private saveToVault(): void {
+    if (!this.vaultPath) return;
+    const vault: SerializedVault = {
+      accounts: this.uow.accounts.findAll(),
+      instruments: this.uow.instruments.findAll(),
+      entries: this.uow.ledger.findAll(),
+      importBatches: this.uow.importBatches.findAll(),
+    };
+    fs.writeFileSync(this.vaultPath, JSON.stringify(vault, null, 2), "utf-8");
+  }
 
   /**
    * Record a new manual ledger event.
@@ -60,9 +112,7 @@ export class TrackerService {
       : calendarDate(new Date().toISOString().slice(0, 10));
     const amountPaise = fromRupees(params.amountRupees);
     const now = new Date().toISOString();
-    const id = entryId(
-      `manual_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-    );
+    const id = entryId(`manual_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`);
     const dedupeKey = `manual:${targetAccId}:${date}:${params.kind}:${amountPaise}:${params.description.trim()}`;
 
     let entry: LedgerEntry;
@@ -107,6 +157,7 @@ export class TrackerService {
     }
 
     this.uow.ledger.append(entry);
+    this.saveToVault();
     return entry;
   }
 
@@ -138,6 +189,7 @@ export class TrackerService {
           entryCount: entries.length,
         });
       });
+      this.saveToVault();
     }
 
     return result;

@@ -27,7 +27,11 @@ export interface EventStore {
  * event-sourcing primitives (replay, version tracking, dedup checking).
  */
 export class MemoryEventStore implements EventStore {
-  constructor(private readonly ledger: LedgerRepository) {}
+  private readonly ledger: LedgerRepository;
+
+  constructor(ledger: LedgerRepository) {
+    this.ledger = ledger;
+  }
 
   /** Append a single entry, rejecting duplicates. */
   append(entry: LedgerEntry): void {

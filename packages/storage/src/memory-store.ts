@@ -54,7 +54,11 @@ interface StoreSnapshot {
 // ──────────────────────────────────────────────
 
 class MemoryAccountRepository implements AccountRepository {
-  constructor(private readonly data: Map<string, Account>) {}
+  private readonly data: Map<string, Account>;
+
+  constructor(data: Map<string, Account>) {
+    this.data = data;
+  }
 
   save(account: Account): void {
     this.data.set(account.id, clone(account));
@@ -79,10 +83,16 @@ class MemoryAccountRepository implements AccountRepository {
 // ──────────────────────────────────────────────
 
 class MemoryInstrumentRepository implements InstrumentRepository {
+  private readonly data: Map<string, Instrument>;
+  private readonly isinIndex: Map<string, InstrumentId>;
+
   constructor(
-    private readonly data: Map<string, Instrument>,
-    private readonly isinIndex: Map<string, InstrumentId>,
-  ) {}
+    data: Map<string, Instrument>,
+    isinIndex: Map<string, InstrumentId>,
+  ) {
+    this.data = data;
+    this.isinIndex = isinIndex;
+  }
 
   save(instrument: Instrument): void {
     // Remove old ISIN index entry if overwriting
@@ -117,11 +127,19 @@ class MemoryInstrumentRepository implements InstrumentRepository {
 // ──────────────────────────────────────────────
 
 class MemoryLedgerRepository implements LedgerRepository {
+  private readonly entries: LedgerEntry[];
+  private readonly byId: Map<string, LedgerEntry>;
+  private readonly byDedupeKey: Map<string, LedgerEntry>;
+
   constructor(
-    private readonly entries: LedgerEntry[],
-    private readonly byId: Map<string, LedgerEntry>,
-    private readonly byDedupeKey: Map<string, LedgerEntry>,
-  ) {}
+    entries: LedgerEntry[],
+    byId: Map<string, LedgerEntry>,
+    byDedupeKey: Map<string, LedgerEntry>,
+  ) {
+    this.entries = entries;
+    this.byId = byId;
+    this.byDedupeKey = byDedupeKey;
+  }
 
   append(entry: LedgerEntry): void {
     if (this.byDedupeKey.has(entry.dedupeKey)) {
@@ -202,7 +220,11 @@ class MemoryLedgerRepository implements LedgerRepository {
 // ──────────────────────────────────────────────
 
 class MemoryPriceRepository implements PriceRepository {
-  constructor(private readonly prices: Price[]) {}
+  private readonly prices: Price[];
+
+  constructor(prices: Price[]) {
+    this.prices = prices;
+  }
 
   save(price: Price): void {
     // Remove existing price for same instrument+date
@@ -250,10 +272,16 @@ class MemoryPriceRepository implements PriceRepository {
 // ──────────────────────────────────────────────
 
 class MemoryImportBatchRepository implements ImportBatchRepository {
+  private readonly data: Map<string, ImportBatch>;
+  private readonly byHash: Map<string, ImportBatch>;
+
   constructor(
-    private readonly data: Map<string, ImportBatch>,
-    private readonly byHash: Map<string, ImportBatch>,
-  ) {}
+    data: Map<string, ImportBatch>,
+    byHash: Map<string, ImportBatch>,
+  ) {
+    this.data = data;
+    this.byHash = byHash;
+  }
 
   save(batch: ImportBatch): void {
     const cloned = clone(batch);

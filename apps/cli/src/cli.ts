@@ -9,13 +9,17 @@ import { formatINR } from "@resource-tracker/core";
 import { TrackerService } from "./service.ts";
 import type { SourceFormat } from "@resource-tracker/ingest";
 
+const defaultVaultPath = process.env["RT_VAULT_PATH"] ?? "./.rt-vault.json";
+
 /**
  * Build the CAC CLI instance wired to a TrackerService.
  *
- * @param service - Optional service instance (defaults to new instance)
+ * @param service - Optional service instance (defaults to new instance with persistence)
  * @returns Configured CAC CLI instance
  */
-export function createCli(service: TrackerService = new TrackerService()) {
+export function createCli(
+  service: TrackerService = new TrackerService(undefined, defaultVaultPath),
+) {
   const cli = cac("rt");
 
   // ── Record Command ────────────────────────────────────────────────────────
